@@ -1,5 +1,5 @@
 (library
  (name advent)
  (inline_tests)
- (preprocess (pps ppx_inline_test ppx_expect))
- (libraries core angstrom))
+ (preprocess (pps ppx_inline_test ppx_expect ppx_jane))
+ (libraries core angstrom str))
