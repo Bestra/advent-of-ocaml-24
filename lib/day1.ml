@@ -96,6 +96,12 @@ let%expect_test _ =
     (Ok (3 4))
   |}]
 
+let%expect_test _ =
+  parse_one_through_nine "heyeightwodude" |> print_result ;
+  [%expect {|
+    (Ok (8 2))
+  |}]
+
 let first_and_last l =
   match l with
   | [] ->
@@ -116,9 +122,8 @@ let%expect_test _ =
   [%expect {| (1 1) |}]
 
 let first_and_last_digits s =
-  parse_one_through_nine s
-  |> Result.map ~f:first_and_last
-  |> Result.ok_or_failwith
+  let digit_list = parse_one_through_nine s in
+  digit_list |> Result.map ~f:first_and_last |> Result.ok_or_failwith
 
 (**
     
@@ -153,10 +158,7 @@ let calibration s =
   Int.of_string (String.of_char a ^ String.of_char b)
 
 let calibration_sum lines =
-  List.fold lines ~init:0 ~f:(fun acc s ->
-      let c = calibration s in
-      printf "%s -> %d\n" s c ;
-      acc + calibration s )
+  List.fold lines ~init:0 ~f:(fun acc s -> acc + calibration s)
 
 let%expect_test _ =
   calibration "two65eightbkgqcsn91qxkfvg" |> printf "%d\n" ;
