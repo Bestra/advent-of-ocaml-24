@@ -1,5 +1,4 @@
 open Core
-open Angstrom
 
 type color = Red | Blue | Green [@@deriving sexp_of]
 
@@ -8,16 +7,9 @@ type hand = {red: int; blue: int; green: int} [@@deriving sexp_of]
 
 type game = {id: int; hands: hand list} [@@deriving sexp_of]
 
-(* parse a string and output a game. example inputs:
-   Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green would return a game with id 1 and hands
-   [ {red = 4; blue = 3; green = 0}; {red = 1; blue = 6; green = 2}; {red = 0; blue = 0; green = 2} ]
-   Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue would return a game with id 2 and hands
-   [ {red = 0; blue = 1; green = 2}; {red = 1; blue = 4; green = 3}; {red = 0; blue = 1; green = 1} ]
-   Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
-   Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
-   Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green*)
-
 module Parser = struct
+  open Angstrom
+
   let is_digit = function '0' .. '9' -> true | _ -> false
 
   let is_whitespace = function ' ' | '\t' | '\n' -> true | _ -> false
@@ -93,10 +85,10 @@ let max_dice (game : game) : hand =
       ; blue= max max_dice.blue hand.blue
       ; green= max max_dice.green hand.green } )
 
-let%expect_test "max dice`" =
-  "Game 11: 3 blue, 4 red; 1 red, 12 green, 6 blue; 2 green"
+let%expect_test "max dice" =
+  "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
   |> Parser.game_of_string |> max_dice |> [%sexp_of: hand] |> print_s ;
-  [%expect {| ((red 4) (blue 6) (green 12)) |}]
+  [%expect {| ((red 4) (blue 6) (green 2)) |}]
 
 (** a game is possible if all of its hands have dice less than or equal to the given max dice*)
 let possible game max_dice =
@@ -104,10 +96,16 @@ let possible game max_dice =
       hand.red <= max_dice.red && hand.blue <= max_dice.blue
       && hand.green <= max_dice.green )
 
+let power dice = dice.red * dice.blue * dice.green
+
 let possible_game_ids max_dice game_input =
   List.map game_input ~f:Parser.game_of_string
   |> List.filter ~f:(fun game -> possible game max_dice)
   |> List.map ~f:(fun game -> game.id)
+
+let game_powers game_input =
+  List.map game_input ~f:Parser.game_of_string
+  |> List.map ~f:max_dice |> List.map ~f:power
 
 let sample_input =
   [ "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green"
@@ -121,6 +119,15 @@ let%expect_test "possible_game_ids" =
   possible_game_ids max_dice sample_input |> [%sexp_of: int list] |> print_s ;
   [%expect {| (1 2 5) |}]
 
+let%expect_test "power" =
+  let dice = {red= 3; green= 4; blue= 5} in
+  power dice |> [%sexp_of: int] |> print_s ;
+  [%expect {| 60 |}]
+
+let%expect_test "sample input power" =
+  game_powers sample_input |> [%sexp_of: int list] |> print_s ;
+  [%expect {| (48 12 1560 630 36) |}]
+
 (** sum up the ids of the possible games*)
 let part_1 () =
   let input = In_channel.read_lines "./inputs/2.txt" in
@@ -128,3 +135,9 @@ let part_1 () =
   possible_game_ids max_dice input
   |> List.sum (module Int) ~f:(fun x -> x)
   |> printf "Day 2 Part 1: %d\n"
+
+let part_2 () =
+  let input = In_channel.read_lines "./inputs/2.txt" in
+  game_powers input
+  |> List.sum (module Int) ~f:(fun x -> x)
+  |> printf "Day 2 Part 2: %d\n"

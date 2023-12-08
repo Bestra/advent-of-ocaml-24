@@ -1,3 +1,3 @@
 open Advent
 
-let () = Day2.part_1 ()
+let () = Day2.part_2 ()
