@@ -26,15 +26,14 @@ module Parser = struct
 
   let whitespace = skip_while is_whitespace
 
+  (* keep this as example of using discard and return over the applicative interface *)
   let color =
-    string "red"
-    >>| (fun _ -> Red)
+    string "red" *> return Red
     <|> (string "blue" >>| fun _ -> Blue)
     <|> (string "green" >>| fun _ -> Green)
 
   let dice_count =
-    whitespace *> integer
-    >>= fun n -> whitespace *> color >>= fun c -> return (n, c)
+    lift2 (fun n c -> (n, c)) (whitespace *> integer) (whitespace *> color)
 
   let hand =
     sep_by1 (string ", ") dice_count
