@@ -1,5 +1,5 @@
 open Core
-open Angstrom
+open Base.Poly
 
 let read_file () = In_channel.read_lines "./inputs/1.txt"
 
@@ -29,14 +29,6 @@ let%test _ = combine_digits "a1b2c3d4e5f" = 15
 
 let%test _ = combine_digits "treb7uchet" = 77
 
-(** sum the two digit numbers in the given list. for example with:
-  1abc2
-pqr3stu8vwx
-a1b2c3d4e5f
-treb7uchet    
-the values are 12, 38, 15, 77 and the sum is 142
-  *)
-
 let sum_two_digit_numbers l =
   List.fold l ~init:0 ~f:(fun acc s -> acc + combine_digits s)
 
@@ -49,81 +41,64 @@ let part_1 () =
   let sum = sum_two_digit_numbers lines in
   printf "sum of two digit numbers: %d\n" sum
 
-let one_through_nine =
-  choice
-    [ string "zero" *> return (Some '0')
-    ; string "0" *> return (Some '0')
-    ; string "one" *> return (Some '1')
-    ; string "1" *> return (Some '1')
-    ; string "two" *> return (Some '2')
-    ; string "2" *> return (Some '2')
-    ; string "three" *> return (Some '3')
-    ; string "3" *> return (Some '3')
-    ; string "four" *> return (Some '4')
-    ; string "4" *> return (Some '4')
-    ; string "five" *> return (Some '5')
-    ; string "5" *> return (Some '5')
-    ; string "six" *> return (Some '6')
-    ; string "6" *> return (Some '6')
-    ; string "seven" *> return (Some '7')
-    ; string "7" *> return (Some '7')
-    ; string "eight" *> return (Some '8')
-    ; string "8" *> return (Some '8')
-    ; string "nine" *> return (Some '9')
-    ; string "9" *> return (Some '9') ]
+(** sum the two digit numbers in the given list. for example with:
+  1abc2
+pqr3stu8vwx
+a1b2c3d4e5f
+treb7uchet    
+the values are 12, 38, 15, 77 and the sum is 142
+  *)
 
-let my_parser' = one_through_nine <|> advance 1 *> return None
-
-let my_parser = many1 my_parser'
-
-let parse_one_through_nine s =
-  let filter_some l = List.filter_opt l in
-  parse_string my_parser s ~consume:All |> Result.map ~f:filter_some
-
-let print_result r =
-  Result.sexp_of_t [%sexp_of: char list] [%sexp_of: string] r
-  |> Sexp.to_string_hum |> print_endline
-
-let%expect_test _ =
-  parse_one_through_nine "one" |> print_result ;
-  [%expect {|
-    (Ok (1))
-  |}]
-
-let%expect_test _ =
-  parse_one_through_nine "heythreedude4" |> print_result ;
-  [%expect {|
-    (Ok (3 4))
-  |}]
+(* Given a list, match the first characters for those contained in the words
+   one - nine, one, two, three, etc, as well as 1-9 characters.
+   if patterns end with e, o, or t, we don't want to consume that final character. that'll let us match things like oneight and spit out [1; 8] *)
+let extract_digits_from_string s =
+  let rec extract_digits acc l =
+    match l with
+    | [] ->
+        List.rev acc
+    | ('1' .. '9' as c) :: rest ->
+        extract_digits (c :: acc) rest
+    | 'o' :: 'n' :: 'e' :: tl ->
+        extract_digits ('1' :: acc) ('e' :: tl)
+    | 't' :: 'w' :: 'o' :: tl ->
+        extract_digits ('2' :: acc) ('o' :: tl)
+    | 't' :: 'h' :: 'r' :: 'e' :: 'e' :: tl ->
+        extract_digits ('3' :: acc) ('e' :: tl)
+    | 'f' :: 'o' :: 'u' :: 'r' :: tl ->
+        extract_digits ('4' :: acc) tl
+    | 'f' :: 'i' :: 'v' :: 'e' :: tl ->
+        extract_digits ('5' :: acc) ('e' :: tl)
+    | 's' :: 'i' :: 'x' :: tl ->
+        extract_digits ('6' :: acc) tl
+    | 's' :: 'e' :: 'v' :: 'e' :: 'n' :: tl ->
+        extract_digits ('7' :: acc) tl
+    | 'e' :: 'i' :: 'g' :: 'h' :: 't' :: tl ->
+        extract_digits ('8' :: acc) ('t' :: tl)
+    | 'n' :: 'i' :: 'n' :: 'e' :: tl ->
+        extract_digits ('9' :: acc) ('e' :: tl)
+    | _ :: rest ->
+        extract_digits acc rest
+  in
+  extract_digits [] (String.to_list s)
 
 let%expect_test _ =
-  parse_one_through_nine "heyeightwodude" |> print_result ;
-  [%expect {|
-    (Ok (8 2))
-  |}]
-
-let first_and_last l =
-  match l with
-  | [] ->
-      failwith "Empty list"
-  | [x] ->
-      (x, x)
-  | first :: rest ->
-      (first, List.last_exn rest)
+  extract_digits_from_string "1abc2"
+  |> [%sexp_of: char list] |> Sexp.to_string_hum |> print_endline ;
+  [%expect {| (1 2) |}]
 
 let%expect_test _ =
-  first_and_last [1; 2; 3; 4; 5]
-  |> [%sexp_of: int * int] |> Sexp.to_string_hum |> print_endline ;
-  [%expect {| (1 5) |}]
+  extract_digits_from_string "oneightwone"
+  |> [%sexp_of: char list] |> Sexp.to_string_hum |> print_endline ;
+  [%expect {| (1 8 2 1) |}]
 
-let%expect_test _ =
-  first_and_last [1] |> [%sexp_of: int * int] |> Sexp.to_string_hum
-  |> print_endline ;
-  [%expect {| (1 1) |}]
+let%test _ = extract_digits_from_string "pqr3stu8vwx" = ['3'; '8']
+
+let%test _ = extract_digits_from_string "one" = ['1']
 
 let first_and_last_digits s =
-  let digit_list = parse_one_through_nine s in
-  digit_list |> Result.map ~f:first_and_last |> Result.ok_or_failwith
+  let digit_list = extract_digits_from_string s in
+  (List.hd_exn digit_list, List.last_exn digit_list)
 
 (**
     
@@ -148,6 +123,10 @@ let%expect_test _ =
 let%expect_test _ =
   first_and_last_digits "eightwothree" |> print_result' ;
   [%expect {| (8 3) |}]
+
+let%expect_test _ =
+  first_and_last_digits "eightwo" |> print_result' ;
+  [%expect {| (8 2) |}]
 
 let%expect_test _ =
   first_and_last_digits "two65eightbkgqcsn91qxkfvg" |> print_result' ;
